@@ -162,7 +162,21 @@ result = mangle(spectrum, photometry, min_coverage=0.95)
 
 ## Direct synthetic photometry
 
-The synthetic-photometry calculation is also exposed independently:
+For the common/general case of computing an AB magnitude directly from an SVO
+FPS identifier:
+
+```python
+from specmangle import spectrum_to_magnitude
+
+mag = spectrum_to_magnitude(spectrum, "SLOAN/SDSS.r")
+```
+
+If the input `Spectrum` includes an uncertainty, the function returns
+`(mag, mag_err)`. Both values carry Astropy magnitude units. An already loaded
+`Bandpass` can be supplied instead of an SVO identifier.
+
+The lower-level synthetic-photometry result is also exposed when coverage and
+other diagnostics are useful:
 
 ```python
 from specmangle import Bandpass, synthetic_ab_magnitude

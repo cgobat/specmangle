@@ -2,7 +2,11 @@
 
 from .bandpasses import Bandpass
 from .mangling import MangleResult, mangle
-from .photometry import SyntheticPhotometry, synthetic_ab_magnitude
+from .photometry import (
+    SyntheticPhotometry,
+    spectrum_to_magnitude,
+    synthetic_ab_magnitude,
+)
 
 __version__ = "0.1.0-beta"
 
@@ -11,5 +15,6 @@ __all__ = [
     "MangleResult",
     "SyntheticPhotometry",
     "mangle",
+    "spectrum_to_magnitude",
     "synthetic_ab_magnitude",
 ]

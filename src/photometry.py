@@ -24,6 +24,50 @@ class SyntheticPhotometry:
     coverage: float
 
 
+def spectrum_to_magnitude(
+    spectrum: Spectrum,
+    band: str | Bandpass,
+    *,
+    min_coverage: float = 0.98,
+) -> u.Magnitude | tuple[u.Magnitude, u.Magnitude]:
+    """Compute synthetic AB photometry for a spectrum in an SVO bandpass.
+
+    Parameters
+    ----------
+    spectrum
+        Input spectrum. If it includes an uncertainty, the propagated
+        magnitude uncertainty is returned as well.
+    band
+        SVO FPS filter identifier or an already loaded `Bandpass`.
+    min_coverage
+        Minimum fraction of the bandpass reference signal that must overlap
+        the valid spectrum.
+
+    Returns
+    -------
+    magnitude
+        Synthetic AB magnitude. If the input spectrum has an uncertainty,
+        returns ``(magnitude, magnitude_uncertainty)`` instead.
+    """
+    if isinstance(band, str):
+        bandpass = Bandpass.from_svo(band)
+    elif isinstance(band, Bandpass):
+        bandpass = band
+    else:
+        raise TypeError("band must be an SVO FPS filter ID or Bandpass")
+
+    synthetic = synthetic_ab_magnitude(
+        spectrum,
+        bandpass,
+        min_coverage=min_coverage,
+    )
+    magnitude = synthetic.magnitude * u.ABmag
+    if synthetic.uncertainty is None:
+        return magnitude
+
+    return magnitude, synthetic.uncertainty * u.mag
+
+
 def synthetic_ab_magnitude(
     spectrum: Spectrum,
     bandpass: Bandpass,
