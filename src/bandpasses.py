@@ -142,10 +142,10 @@ def _normalize_svo_detector_type(value: object) -> DetectorType:
     except (TypeError, ValueError):
         numeric = None
 
-    # SVO Photometry Data Model convention: 0 = photon counter, 1 = energy counter.
+    # IVOA Photometry Data Model convention: 0 = energy counter, 1 = photon counter.
     if numeric == 0:
-        return "photon"
-    if numeric == 1:
         return "energy"
+    if numeric == 1:
+        return "photon"
 
     raise ValueError(f"unrecognized SVO DetectorType value: {value!r}")
