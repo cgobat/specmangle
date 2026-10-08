@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,6 +7,8 @@ name = "specmangle"
 dynamic = ["version"]
 description = "Photometry-based 'mangling' (calibration) of astronomical spectra"
 readme = "README.md"
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
 authors = [
     {name = "Caden Gobat", email = "cgobat@sdsu.edu"},
 ]
