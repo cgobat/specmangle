@@ -13,7 +13,11 @@ from scipy.optimize import OptimizeResult, least_squares
 from specutils import Spectrum
 
 from .bandpasses import Bandpass
-from .photometry import SyntheticPhotometry, synthetic_ab_magnitude
+from .photometry import (
+    SyntheticPhotometry,
+    _InsufficientCoverageError,
+    synthetic_ab_magnitude,
+)
 
 
 @dataclass(frozen=True)
@@ -87,6 +91,30 @@ def mangle(
         else:
             loaded_bandpasses[filter_id] = Bandpass.from_svo(filter_id)
 
+    original_synthetic = {}
+    usable_filter_ids = []
+    for filter_id in filter_ids:
+        try:
+            original_synthetic[filter_id] = synthetic_ab_magnitude(
+                spectrum,
+                loaded_bandpasses[filter_id],
+                min_coverage=min_coverage,
+            )
+        except _InsufficientCoverageError:
+            continue
+        usable_filter_ids.append(filter_id)
+
+    if not usable_filter_ids:
+        raise ValueError(
+            "no photometric passbands have sufficient spectral coverage"
+        )
+
+    filter_ids = usable_filter_ids
+    rows_for_fit = [row for row in rows if row.band in original_synthetic]
+    loaded_bandpasses = {
+        filter_id: loaded_bandpasses[filter_id] for filter_id in filter_ids
+    }
+
     anchor_pairs = sorted(
         (
             loaded_bandpasses[filter_id].pivot_wavelength.to_value(u.AA),
@@ -107,21 +135,12 @@ def mangle(
         filter_id: index for index, filter_id in enumerate(ordered_filter_ids)
     }
 
-    original_synthetic = {
-        filter_id: synthetic_ab_magnitude(
-            spectrum,
-            loaded_bandpasses[filter_id],
-            min_coverage=min_coverage,
-        )
-        for filter_id in filter_ids
-    }
-
     initial_parameters = np.zeros(len(ordered_filter_ids), dtype=float)
     for filter_id in ordered_filter_ids:
         estimates = []
         weights = []
         synthetic = original_synthetic[filter_id]
-        for row in rows:
+        for row in rows_for_fit:
             if row.band != filter_id:
                 continue
             estimates.append(0.4 * np.log(10.0) * (synthetic.magnitude - row.mag))
@@ -157,7 +176,7 @@ def mangle(
         }
 
         residuals = []
-        for row in rows:
+        for row in rows_for_fit:
             synthetic = synthetic_by_filter[row.band]
             sigma = _combined_magnitude_uncertainty(row, synthetic)
             scale = 1.0 if sigma is None else sigma
@@ -195,7 +214,7 @@ def mangle(
         for filter_id in filter_ids
     }
 
-    parameter_covariance = _parameter_covariance(optimizer, spectrum, rows)
+    parameter_covariance = _parameter_covariance(optimizer, spectrum, rows_for_fit)
     correction_uncertainty = None
     if parameter_covariance is not None:
         basis = _correction_basis(
@@ -214,11 +233,17 @@ def mangle(
 
     diagnostics = photometry.copy(copy_data=True)
     diagnostics["synthetic_mag"] = [
-        final_synthetic_by_filter[row.band].magnitude for row in rows
+        np.nan
+        if row.band not in final_synthetic_by_filter
+        else final_synthetic_by_filter[row.band].magnitude
+        for row in rows
     ]
     diagnostics["synthetic_mag_err"] = [
         np.nan
-        if final_synthetic_by_filter[row.band].uncertainty is None
+        if (
+            row.band not in final_synthetic_by_filter
+            or final_synthetic_by_filter[row.band].uncertainty is None
+        )
         else final_synthetic_by_filter[row.band].uncertainty
         for row in rows
     ]

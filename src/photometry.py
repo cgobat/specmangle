@@ -15,6 +15,10 @@ FLAM = u.erg / (u.s * u.cm**2 * u.AA)
 AB_ZERO_FNU = (0. * u.ABmag).to(u.Jy)
 
 
+class _InsufficientCoverageError(ValueError):
+    pass
+
+
 @dataclass(frozen=True)
 class SyntheticPhotometry:
     """Synthetic AB magnitude and associated diagnostics."""
@@ -103,7 +107,9 @@ def synthetic_ab_magnitude(
     lower = max(wave_value[0], band_wave[0])
     upper = min(wave_value[-1], band_wave[-1])
     if lower >= upper:
-        raise ValueError(f"spectrum does not overlap passband {bandpass.filter_id}")
+        raise _InsufficientCoverageError(
+            f"spectrum does not overlap passband {bandpass.filter_id}"
+        )
 
     interior = band_wave[(band_wave > lower) & (band_wave < upper)]
     integration_wave = np.unique(np.concatenate(([lower], interior, [upper])))
@@ -116,7 +122,7 @@ def synthetic_ab_magnitude(
     )
     coverage = overlap_reference_signal / full_reference_signal
     if coverage < min_coverage:
-        raise ValueError(
+        raise _InsufficientCoverageError(
             f"spectrum covers only {coverage:.3f} of passband "
             f"{bandpass.filter_id}; required coverage is {min_coverage:.3f}"
         )
