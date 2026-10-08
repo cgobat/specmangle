@@ -12,7 +12,7 @@ from .bandpasses import Bandpass, DetectorType
 
 
 FLAM = u.erg / (u.s * u.cm**2 * u.AA)
-AB_ZERO_FNU = u.Quantity(0.0, u.ABmag).to(u.Jy)
+AB_ZERO_FNU = (0. * u.ABmag).to(u.Jy)
 
 
 @dataclass(frozen=True)
