@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "specmangle"
+dynamic = ["version"]
+description = "Photometry-based 'mangling' (calibration) of astronomical spectra"
+readme = "README.md"
+authors = [
+    {name = "Caden Gobat", email = "cgobat@sdsu.edu"},
+]
+requires-python = ">=3.10"
+dependencies = [
+    "astropy",
+    "astroquery",
+    "numpy",
+    "scipy",
+    "specutils",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.setuptools]
+package-dir = {specmangle = "src"}
+
+[tool.setuptools.dynamic]
+version = {attr = "specmangle.__version__"}
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
