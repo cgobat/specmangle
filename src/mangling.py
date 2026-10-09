@@ -92,6 +92,8 @@ def mangle(
             loaded_bandpasses[filter_id] = Bandpass.from_svo(filter_id)
 
     original_synthetic = {}
+    coverage_by_filter = {}
+    skip_reason_by_filter = {}
     usable_filter_ids = []
     for filter_id in filter_ids:
         try:
@@ -100,13 +102,17 @@ def mangle(
                 loaded_bandpasses[filter_id],
                 min_coverage=min_coverage,
             )
-        except _InsufficientCoverageError:
+        except _InsufficientCoverageError as exc:
+            coverage_by_filter[filter_id] = exc.coverage
+            skip_reason_by_filter[filter_id] = str(exc)
             continue
+        coverage_by_filter[filter_id] = original_synthetic[filter_id].coverage
         usable_filter_ids.append(filter_id)
 
     if not usable_filter_ids:
+        reasons = "; ".join(skip_reason_by_filter.values())
         raise ValueError(
-            "no photometric passbands have sufficient spectral coverage"
+            "no photometric passbands have sufficient spectral coverage: " + reasons
         )
 
     filter_ids = usable_filter_ids
@@ -232,6 +238,11 @@ def mangle(
         )
 
     diagnostics = photometry.copy(copy_data=True)
+    diagnostics["used"] = [row.band in final_synthetic_by_filter for row in rows]
+    diagnostics["coverage"] = [coverage_by_filter[row.band] for row in rows]
+    diagnostics["skip_reason"] = [
+        skip_reason_by_filter.get(row.band, "") for row in rows
+    ]
     diagnostics["synthetic_mag"] = [
         np.nan
         if row.band not in final_synthetic_by_filter

@@ -70,8 +70,10 @@ It may additionally contain:
 - `mag_err`: 1-sigma magnitude uncertainty. Masked values are treated as missing
 uncertainties.
 
-Additional columns are preserved in `result.photometry`, which adds
-`synthetic_mag`, `synthetic_mag_err`, and `residual` columns.
+Additional columns are preserved in `result.photometry`, which adds `used`,
+`coverage`, `skip_reason`, `synthetic_mag`, `synthetic_mag_err`, and `residual`
+columns. Bands that do not meet `min_coverage` are excluded from the fit and
+reported explicitly in these diagnostic columns.
 
 ## Mangling model
 

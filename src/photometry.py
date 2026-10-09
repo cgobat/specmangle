@@ -16,7 +16,9 @@ AB_ZERO_FNU = (0. * u.ABmag).to(u.Jy)
 
 
 class _InsufficientCoverageError(ValueError):
-    pass
+    def __init__(self, message: str, coverage: float) -> None:
+        super().__init__(message)
+        self.coverage = coverage
 
 
 @dataclass(frozen=True)
@@ -109,7 +111,8 @@ def synthetic_ab_magnitude(
     upper = min(wave_value[-1], band_wave[-1])
     if lower >= upper:
         raise _InsufficientCoverageError(
-            f"spectrum does not overlap passband {bandpass.filter_id}"
+            f"spectrum does not overlap passband {bandpass.filter_id}",
+            coverage=0.0,
         )
 
     integration_segments = []
@@ -168,7 +171,8 @@ def synthetic_ab_magnitude(
     if coverage < min_coverage:
         raise _InsufficientCoverageError(
             f"spectrum covers only {coverage:.3f} of passband "
-            f"{bandpass.filter_id}; required coverage is {min_coverage:.3f}"
+            f"{bandpass.filter_id}; required coverage is {min_coverage:.3f}",
+            coverage=float(coverage),
         )
 
     if not np.isfinite(source_signal) or source_signal <= 0.0:

@@ -82,6 +82,11 @@ def test_mangle_skips_passbands_without_sufficient_coverage():
     )
 
     assert set(result.bandpasses) == {"covered"}
+    assert list(result.photometry["used"]) == [False, True]
+    assert result.photometry["coverage"][0] < 0.95
+    assert result.photometry["coverage"][1] >= 0.95
+    assert "spectrum covers only" in result.photometry["skip_reason"][0]
+    assert result.photometry["skip_reason"][1] == ""
     assert np.isnan(result.photometry["synthetic_mag"][0])
     assert np.isnan(result.photometry["residual"][0])
     assert np.isfinite(result.photometry["synthetic_mag"][1])
@@ -143,4 +148,7 @@ def test_mangle_skips_passband_with_masked_internal_gap():
     )
 
     assert set(result.bandpasses) == {"covered"}
+    assert not result.photometry["used"][0]
+    assert result.photometry["coverage"][0] < 0.98
+    assert result.photometry["skip_reason"][0]
     assert np.isnan(result.photometry["synthetic_mag"][0])
