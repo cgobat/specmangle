@@ -96,6 +96,12 @@ result = mangle(spectrum, photometry, smoothness=0.1)
 
 The default is `smoothness=0.0`, so no additional regularization is imposed.
 
+The fitted correction can be evaluated on any wavelength grid:
+
+```python
+correction = result.correction_at(new_wavelength)
+```
+
 ## History & heritage
 
 The term "spectral mangling" is commonly used for smooth wavelength-dependent
@@ -211,6 +217,7 @@ print(synthetic.coverage)
 
 - `spectrum`: the mangled `specutils.Spectrum`
 - `correction`: multiplicative correction evaluated at each input spectral sample
+- `correction_at(wavelength)`: evaluate the fitted correction at arbitrary wavelengths
 - `correction_uncertainty`: estimated 1-sigma uncertainty in that correction, when identifiable
 - `anchor_wavelengths`: spline-anchor pivot wavelengths
 - `log_correction_parameters`: fitted log-correction values at the anchors

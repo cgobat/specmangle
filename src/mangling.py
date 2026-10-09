@@ -34,6 +34,32 @@ class MangleResult:
     bandpasses: dict[str, Bandpass]
     optimizer: OptimizeResult
 
+    def correction_at(self, wavelength: u.Quantity) -> float | np.ndarray:
+        """Evaluate the fitted multiplicative correction at arbitrary wavelengths."""
+        try:
+            wavelength_values = np.asarray(wavelength.to_value(u.AA), dtype=float)
+        except AttributeError as exc:
+            raise TypeError("wavelength must be an Astropy Quantity") from exc
+
+        if (
+            np.any(~np.isfinite(wavelength_values))
+            or np.any(wavelength_values <= 0.0)
+        ):
+            raise ValueError("wavelength must be positive and finite")
+
+        scalar = wavelength_values.ndim == 0
+        values = np.atleast_1d(wavelength_values)
+        correction = np.exp(
+            _evaluate_log_correction(
+                values,
+                self.anchor_wavelengths.to_value(u.AA),
+                self.log_correction_parameters,
+            )
+        )
+        if scalar:
+            return float(correction[0])
+        return correction
+
 
 @dataclass(frozen=True)
 class _PhotometryRow:

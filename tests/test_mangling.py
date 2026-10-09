@@ -51,6 +51,13 @@ def test_mangle_recovers_constant_flux_scale_from_two_bandpasses():
         3631.0 * expected_scale,
         rtol=1e-9,
     )
+    assert np.allclose(
+        result.correction_at(np.array([350.0, 475.0, 625.0, 850.0]) * u.nm),
+        expected_scale,
+        rtol=1e-9,
+        atol=1e-12,
+    )
+    assert result.correction_at(525.0 * u.nm) == pytest.approx(expected_scale)
 
 
 def test_mangle_skips_passbands_without_sufficient_coverage():
