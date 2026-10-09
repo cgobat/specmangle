@@ -15,7 +15,7 @@ from specutils import Spectrum
 from .bandpasses import Bandpass
 from .photometry import (
     SyntheticPhotometry,
-    _InsufficientCoverageError,
+    InsufficientCoverageError,
     synthetic_ab_magnitude,
 )
 
@@ -128,7 +128,7 @@ def mangle(
                 loaded_bandpasses[filter_id],
                 min_coverage=min_coverage,
             )
-        except _InsufficientCoverageError as exc:
+        except InsufficientCoverageError as exc:
             coverage_by_filter[filter_id] = exc.coverage
             skip_reason_by_filter[filter_id] = str(exc)
             continue

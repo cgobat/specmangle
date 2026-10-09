@@ -15,7 +15,7 @@ FLAM = u.erg / (u.s * u.cm**2 * u.AA)
 AB_ZERO_FNU = (0. * u.ABmag).to(u.Jy)
 
 
-class _InsufficientCoverageError(ValueError):
+class InsufficientCoverageError(ValueError):
     def __init__(self, message: str, coverage: float) -> None:
         super().__init__(message)
         self.coverage = coverage
@@ -110,7 +110,7 @@ def synthetic_ab_magnitude(
     lower = max(wave_value[0], band_wave[0])
     upper = min(wave_value[-1], band_wave[-1])
     if lower >= upper:
-        raise _InsufficientCoverageError(
+        raise InsufficientCoverageError(
             f"spectrum does not overlap passband {bandpass.filter_id}",
             coverage=0.0,
         )
@@ -169,7 +169,7 @@ def synthetic_ab_magnitude(
 
     coverage = overlap_reference_signal / full_reference_signal
     if coverage < min_coverage:
-        raise _InsufficientCoverageError(
+        raise InsufficientCoverageError(
             f"spectrum covers only {coverage:.3f} of passband "
             f"{bandpass.filter_id}; required coverage is {min_coverage:.3f}",
             coverage=float(coverage),
