@@ -88,12 +88,13 @@ def synthetic_ab_magnitude(
 
     Masked spectral samples are omitted. Spectral uncertainties, if present,
     are converted to standard deviations and assumed to be independent between
-    input wavelength samples.
+    input wavelength samples. Wavelength cells around masked samples are
+    excluded from the coverage and signal integrals.
     """
     if not 0.0 < min_coverage <= 1.0:
         raise ValueError("min_coverage must be in the interval (0, 1]")
 
-    wavelength, flux, uncertainty = _spectrum_samples(spectrum)
+    wavelength, flux, uncertainty, masked_intervals = _spectrum_samples(spectrum)
     wave_value = wavelength.to_value(u.AA)
 
     band_wave = bandpass.wavelength.to_value(u.AA)
@@ -111,35 +112,64 @@ def synthetic_ab_magnitude(
             f"spectrum does not overlap passband {bandpass.filter_id}"
         )
 
-    interior = band_wave[(band_wave > lower) & (band_wave < upper)]
-    integration_wave = np.unique(np.concatenate(([lower], interior, [upper])))
-    integration_response = np.interp(integration_wave, band_wave, response)
+    integration_segments = []
+    segment_start = lower
+    for gap_start, gap_end in masked_intervals:
+        if gap_end <= lower or gap_start >= upper:
+            continue
+        gap_start = max(gap_start, lower)
+        gap_end = min(gap_end, upper)
+        if segment_start < gap_start:
+            integration_segments.append((segment_start, gap_start))
+        segment_start = max(segment_start, gap_end)
+    if segment_start < upper:
+        integration_segments.append((segment_start, upper))
 
-    overlap_reference_signal = _reference_signal(
-        integration_wave,
-        integration_response,
-        bandpass.detector_type,
-    )
+    overlap_reference_signal = 0.0
+    source_signal = 0.0
+    coefficients = np.zeros(len(wavelength), dtype=float)
+    flux_values = flux.to_value(FLAM)
+    for segment_start, segment_end in integration_segments:
+        interior = band_wave[
+            (band_wave > segment_start) & (band_wave < segment_end)
+        ]
+        integration_wave = np.unique(
+            np.concatenate(([segment_start], interior, [segment_end]))
+        )
+        integration_response = np.interp(integration_wave, band_wave, response)
+
+        overlap_reference_signal += _reference_signal(
+            integration_wave,
+            integration_response,
+            bandpass.detector_type,
+        )
+
+        interpolated_flux = np.interp(
+            integration_wave,
+            wave_value,
+            flux_values,
+        )
+        detector_weight = _detector_weight(
+            integration_wave,
+            bandpass.detector_type,
+        )
+        source_signal += trapezoid(
+            interpolated_flux * integration_response * detector_weight,
+            integration_wave,
+        )
+        if uncertainty is not None:
+            coefficients += _linear_interpolation_integral_coefficients(
+                wave_value,
+                integration_wave,
+                integration_response * detector_weight,
+            )
+
     coverage = overlap_reference_signal / full_reference_signal
     if coverage < min_coverage:
         raise _InsufficientCoverageError(
             f"spectrum covers only {coverage:.3f} of passband "
             f"{bandpass.filter_id}; required coverage is {min_coverage:.3f}"
         )
-
-    interpolated_flux = np.interp(
-        integration_wave,
-        wave_value,
-        flux.to_value(FLAM),
-    )
-    detector_weight = _detector_weight(
-        integration_wave,
-        bandpass.detector_type,
-    )
-    source_signal = trapezoid(
-        interpolated_flux * integration_response * detector_weight,
-        integration_wave,
-    )
 
     if not np.isfinite(source_signal) or source_signal <= 0.0:
         raise ValueError(
@@ -150,11 +180,6 @@ def synthetic_ab_magnitude(
 
     magnitude_uncertainty = None
     if uncertainty is not None:
-        coefficients = _linear_interpolation_integral_coefficients(
-            wave_value,
-            integration_wave,
-            integration_response * detector_weight,
-        )
         signal_uncertainty = np.sqrt(
             np.sum((coefficients * uncertainty.to_value(FLAM)) ** 2)
         )
@@ -173,7 +198,7 @@ def synthetic_ab_magnitude(
 
 def _spectrum_samples(
     spectrum: Spectrum,
-) -> tuple[u.Quantity, u.Quantity, u.Quantity | None]:
+) -> tuple[u.Quantity, u.Quantity, u.Quantity | None, list[tuple[float, float]]]:
     if not isinstance(spectrum, Spectrum):
         raise TypeError("spectrum must be a specutils.Spectrum")
     if spectrum.flux.ndim != 1:
@@ -212,21 +237,39 @@ def _spectrum_samples(
     if np.count_nonzero(valid) < 2:
         raise ValueError("spectrum must contain at least two valid, unmasked samples")
 
+    order = np.argsort(wave_values)
+    wave_values = wave_values[order]
+    sorted_mask = ~valid[order]
+    if np.any(np.diff(wave_values) <= 0.0):
+        raise ValueError("spectrum wavelengths must be unique")
+
+    masked_intervals = []
+    for index in np.flatnonzero(sorted_mask):
+        left = wave_values[index - 1] if index > 0 else wave_values[index]
+        right = (
+            wave_values[index + 1]
+            if index + 1 < len(wave_values)
+            else wave_values[index]
+        )
+        masked_intervals.append(
+            (
+                0.5 * (left + wave_values[index]),
+                0.5 * (wave_values[index] + right),
+            )
+        )
+
     wavelength = wavelength[valid]
     flux = flux[valid]
     if uncertainty is not None:
         uncertainty = uncertainty[valid]
 
-    order = np.argsort(wavelength.to_value(u.AA))
-    wavelength = wavelength[order]
-    flux = flux[order]
+    valid_order = np.argsort(wavelength.to_value(u.AA))
+    wavelength = wavelength[valid_order]
+    flux = flux[valid_order]
     if uncertainty is not None:
-        uncertainty = uncertainty[order]
+        uncertainty = uncertainty[valid_order]
 
-    if np.any(np.diff(wavelength.to_value(u.AA)) <= 0.0):
-        raise ValueError("spectrum wavelengths must be unique")
-
-    return wavelength, flux, uncertainty
+    return wavelength, flux, uncertainty, masked_intervals
 
 
 def _standard_deviation(

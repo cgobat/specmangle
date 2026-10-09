@@ -112,3 +112,35 @@ def test_mangle_raises_if_no_passband_has_sufficient_coverage():
             Table({"band": ["uv"], "mag": [0.0]}),
             bandpasses=bandpasses,
         )
+
+
+def test_mangle_skips_passband_with_masked_internal_gap():
+    wavelength = np.arange(400.0, 801.0, 50.0) * u.nm
+    spectrum = Spectrum(
+        spectral_axis=wavelength,
+        flux=np.full(len(wavelength), 3631.0) * u.Jy,
+        mask=[False, True, True, True, False] + [False] * 4,
+    )
+    bandpasses = {
+        "gapped": Bandpass(
+            "test/gapped",
+            wavelength[:5],
+            np.array([0.0, 0.5, 1.0, 0.5, 0.0]),
+            "energy",
+        ),
+        "covered": Bandpass(
+            "test/covered",
+            wavelength[4:],
+            np.array([0.0, 1.0, 1.0, 1.0, 0.0]),
+            "energy",
+        ),
+    }
+
+    result = mangle(
+        spectrum,
+        Table({"band": ["gapped", "covered"], "mag": [0.0, 0.0]}),
+        bandpasses=bandpasses,
+    )
+
+    assert set(result.bandpasses) == {"covered"}
+    assert np.isnan(result.photometry["synthetic_mag"][0])

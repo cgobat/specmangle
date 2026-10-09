@@ -86,3 +86,30 @@ def test_synthetic_magnitude_uncertainty_propagates_converted_flux_uncertainty()
     expected_uncertainty = 2.5 / np.log(10.0) * 0.01
     assert result.magnitude == pytest.approx(0.0, abs=1e-4)
     assert result.uncertainty == pytest.approx(expected_uncertainty, abs=1e-12)
+
+
+def test_isolated_masked_sample_reduces_coverage():
+    spectrum = Spectrum(
+        spectral_axis=np.array([4000.0, 4500.0, 5000.0, 5500.0, 6000.0]) * u.AA,
+        flux=np.full(5, 3631.0) * u.Jy,
+        mask=[False, False, True, False, False],
+    )
+
+    result = synthetic_ab_magnitude(
+        spectrum,
+        make_bandpass("energy"),
+        min_coverage=0.5,
+    )
+
+    assert result.coverage == pytest.approx(0.567, abs=0.001)
+
+
+def test_substantial_masked_internal_gap_fails_coverage_threshold():
+    spectrum = Spectrum(
+        spectral_axis=np.array([4000.0, 4500.0, 5000.0, 5500.0, 6000.0]) * u.AA,
+        flux=np.full(5, 3631.0) * u.Jy,
+        mask=[False, True, True, True, False],
+    )
+
+    with pytest.raises(ValueError, match="covers only 0.066 of passband"):
+        synthetic_ab_magnitude(spectrum, make_bandpass("energy"))
