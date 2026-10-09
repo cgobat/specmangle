@@ -9,7 +9,7 @@ structures rather than defining parallel containers:
 
 - spectra are `specutils.Spectrum` objects
 - photometric measurements are stored in `astropy.table.Table` objects
-- passband profiles are retrieved from the [SVO Filter Profile Service](https://svo2.cab.inta-csic.es/theory/fps/index.php) via `astroquery`, unless user-defined
+- passband profiles are retrieved from the [SVO Filter Profile Service](https://svo2.cab.inta-csic.es/theory/fps/index.php) via `astroquery` (or user-defined)
 
 ## Installation
 
@@ -62,8 +62,8 @@ print(result.photometry)
 
 The input photometry table must contain:
 
-- `band`: passband identifier, normally an SVO FPS filter ID;
-- `mag`: AB magnitude.
+- `band`: passband identifier, normally an SVO FPS filter ID
+- `mag`: AB magnitude
 
 It may additionally contain:
 
@@ -93,6 +93,20 @@ result = mangle(spectrum, photometry, smoothness=0.1)
 ```
 
 The default is `smoothness=0.0`, so no additional regularization is imposed.
+
+## History & heritage
+
+The term "spectral mangling" is commonly used for smooth wavelength-dependent
+corrections that are applied to a spectrum to make it reproduce contemporaneous
+broadband photometry. The approach has roots in earlier spectral "warping"
+methods (e.g.
+[Tonry *et al.* 2003](https://scixplorer.org/abs/2003ApJ...594....1T)), was
+formalized under the "mangling" nomenclature by
+[Hsiao *et al.* (2007)](https://scixplorer.org/abs/2007ApJ...663.1187H) and
+[Conley *et al.* (2008)](https://scixplorer.org/abs/2008ApJ...681..482C), and
+was later applied directly to spectrophotometric calibration of observed
+core-collapse supernova spectra by
+[Vincenzi *et al.* (2019)](https://scixplorer.org/abs/2019MNRAS.489.5802V).
 
 ## Spectral uncertainties
 
