@@ -101,11 +101,6 @@ def synthetic_ab_magnitude(
 
     band_wave = bandpass.wavelength.to_value(u.AA)
     response = bandpass.transmission
-    full_reference_signal = _reference_signal(
-        band_wave,
-        response,
-        bandpass.detector_type,
-    )
 
     lower = max(wave_value[0], band_wave[0])
     upper = min(wave_value[-1], band_wave[-1])
@@ -128,13 +123,26 @@ def synthetic_ab_magnitude(
     if segment_start < upper:
         integration_segments.append((segment_start, upper))
 
+    # Use the same resolved wavelength grid for the source and AB reference.
+    integration_knots = np.unique(
+        np.concatenate((band_wave, wave_value, np.ravel(integration_segments)))
+    )
+    integration_knots = integration_knots[
+        (integration_knots >= band_wave[0]) & (integration_knots <= band_wave[-1])
+    ]
+    full_reference_signal = _reference_signal(
+        integration_knots,
+        np.interp(integration_knots, band_wave, response),
+        bandpass.detector_type,
+    )
+
     overlap_reference_signal = 0.0
     source_signal = 0.0
     coefficients = np.zeros(len(wavelength), dtype=float)
     flux_values = flux.to_value(FLAM)
     for segment_start, segment_end in integration_segments:
-        interior = band_wave[
-            (band_wave > segment_start) & (band_wave < segment_end)
+        interior = integration_knots[
+            (integration_knots > segment_start) & (integration_knots < segment_end)
         ]
         integration_wave = np.unique(
             np.concatenate(([segment_start], interior, [segment_end]))
