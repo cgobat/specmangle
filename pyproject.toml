@@ -29,7 +29,7 @@ docs = [
 ]
 
 [project.urls]
-Documentation = "https://cgobat.github.io/specmangle/"
+Documentation = "https://specmangle.readthedocs.io/"
 Repository = "https://github.com/cgobat/specmangle"
 
 [tool.setuptools]
