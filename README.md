@@ -6,12 +6,12 @@
 an observed astronomical spectrum such that synthetic broadband photometry based
 on that spectrum matches contemporaneous observations.
 
-The package is deliberately narrow in scope. It uses Astropy-ecosystem data
-structures rather than defining parallel containers:
+The package is deliberately narrow in scope, and uses existing
+Astropy-ecosystem data structures and APIs:
 
-- spectra are `specutils.Spectrum` objects
-- photometric measurements are stored in `astropy.table.Table` objects
-- passband profiles are retrieved from the [SVO Filter Profile Service](https://svo2.cab.inta-csic.es/theory/fps/index.php) via `astroquery` (or user-defined)
+- spectra are [`specutils.Spectrum`](https://specutils.readthedocs.io/en/stable/types_of_spectra.html) objects
+- photometric measurements are stored in [`astropy.table.Table`](https://docs.astropy.org/en/stable/table/index.html) objects
+- passband profiles are retrieved from the [SVO Filter Profile Service](https://svo2.cab.inta-csic.es/theory/fps/index.php) via [`astroquery.svo_fps`](https://astroquery.readthedocs.io/en/latest/svo_fps/svo_fps.html), or user-defined
 
 ## Installation
 
