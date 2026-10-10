@@ -15,11 +15,18 @@ release = metadata.version("specmangle")
 version = release
 
 html_title = f"{project} v{release}"
-html_baseurl = "https://cgobat.github.io/specmangle/"
+html_baseurl = "https://specmangle.readthedocs.io/"
+html_logo = None
+html_favicon = None
 html_theme_options = {
     "github_url": "https://github.com/cgobat/specmangle",
     "use_edit_page_button": True,
     "navigation_with_keys": False,
+    "sst_project_name": "specmangle",
+    "sst_site_root": "https://specmangle.readthedocs.io/",
+    "navbar_links": [],
+    "footer_links": [],
+    "goatcounter_analytics_url": False,
 }
 html_context = {
     "github_user": "cgobat",
