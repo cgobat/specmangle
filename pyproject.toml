@@ -23,6 +23,14 @@ dependencies = [
 
 [project.optional-dependencies]
 test = ["pytest"]
+docs = [
+    "sphinx-astropy[confv3]>=1.11",
+    "sphinx-design",
+]
+
+[project.urls]
+Documentation = "https://cgobat.github.io/specmangle/"
+Repository = "https://github.com/cgobat/specmangle"
 
 [tool.setuptools]
 package-dir = {specmangle = "src"}
