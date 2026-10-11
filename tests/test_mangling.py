@@ -1,10 +1,57 @@
 import numpy as np
 import pytest
 from astropy import units as u
+from astropy.nddata import StdDevUncertainty
 from astropy.table import Table
 from specutils import Spectrum
 
 from specmangle import Bandpass, mangle
+
+
+def _single_bandpass():
+    return Bandpass(
+        "test/single",
+        np.array([400.0, 450.0, 500.0, 550.0, 600.0]) * u.nm,
+        np.array([0.0, 1.0, 1.0, 1.0, 0.0]),
+        "photon",
+    )
+
+
+def test_mangle_handles_zero_spectral_uncertainty_without_mag_err():
+    wavelength = np.arange(400.0, 601.0, 50.0) * u.nm
+    spectrum = Spectrum(
+        spectral_axis=wavelength,
+        flux=np.full(len(wavelength), 3631.0) * u.Jy,
+        uncertainty=StdDevUncertainty(np.zeros(len(wavelength)), unit=u.Jy),
+    )
+
+    result = mangle(
+        spectrum,
+        Table({"band": ["single"], "mag": [0.5]}),
+        bandpasses={"single": _single_bandpass()},
+    )
+
+    assert np.all(np.isfinite(result.correction))
+    assert result.parameter_covariance is None
+
+
+def test_mangle_uses_photometric_uncertainty_with_zero_spectral_uncertainty():
+    wavelength = np.arange(400.0, 601.0, 50.0) * u.nm
+    spectrum = Spectrum(
+        spectral_axis=wavelength,
+        flux=np.full(len(wavelength), 3631.0) * u.Jy,
+        uncertainty=StdDevUncertainty(np.zeros(len(wavelength)), unit=u.Jy),
+    )
+
+    result = mangle(
+        spectrum,
+        Table({"band": ["single"], "mag": [0.5], "mag_err": [0.1]}),
+        bandpasses={"single": _single_bandpass()},
+    )
+
+    assert np.all(np.isfinite(result.correction))
+    assert result.parameter_covariance is not None
+    assert result.parameter_covariance[0, 0] > 0.0
 
 
 def test_mangle_recovers_constant_flux_scale_from_two_bandpasses():

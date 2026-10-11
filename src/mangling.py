@@ -431,7 +431,7 @@ def _combined_magnitude_uncertainty(
         variance += synthetic.uncertainty**2
         has_uncertainty = True
 
-    if not has_uncertainty:
+    if not has_uncertainty or variance == 0.0:
         return None
     return float(np.sqrt(variance))
 
@@ -441,8 +441,12 @@ def _parameter_covariance(
     spectrum: Spectrum,
     rows: list[_PhotometryRow],
 ) -> np.ndarray | None:
+    has_spectral_uncertainty = (
+        spectrum.uncertainty is not None
+        and np.any(np.asarray(spectrum.uncertainty.array) > 0.0)
+    )
     has_absolute_uncertainties = all(
-        row.mag_err is not None or spectrum.uncertainty is not None
+        row.mag_err is not None or has_spectral_uncertainty
         for row in rows
     )
     if not has_absolute_uncertainties:
