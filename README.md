@@ -1,6 +1,6 @@
 # specmangle
 
-[![CI status](https://github.com/cgobat/specmangle/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/cgobat/specmangle/actions/workflows/tests.yml)
+[![CI status](https://github.com/cgobat/specmangle/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/cgobat/specmangle/actions/workflows/tests.yml) [![Documentation Status](https://app.readthedocs.org/projects/specmangle/badge/?version=latest)](https://specmangle.readthedocs.io/en/latest/)
 
 `specmangle` applies a smooth, wavelength-dependent multiplicative correction to
 an observed astronomical spectrum such that synthetic broadband photometry based
