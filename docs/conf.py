@@ -17,7 +17,7 @@ version = release
 html_title = f"{project} v{release}"
 html_baseurl = "https://specmangle.readthedocs.io/"
 html_logo = None
-html_favicon = None
+html_favicon = "assets/favicon.png"
 html_theme_options = {
     "github_url": "https://github.com/cgobat/specmangle",
     "use_edit_page_button": True,
