@@ -16,6 +16,8 @@ AB_ZERO_FNU = (0. * u.ABmag).to(u.Jy)
 
 
 class InsufficientCoverageError(ValueError):
+    """Raised when a bandpass lacks sufficient coverage for some operation."""
+
     def __init__(self, message: str, coverage: float) -> None:
         super().__init__(message)
         self.coverage = coverage
