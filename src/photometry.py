@@ -142,6 +142,8 @@ def synthetic_ab_magnitude(
     source_signal = 0.0
     coefficients = np.zeros(len(wavelength), dtype=float)
     flux_values = flux.to_value(FLAM)
+    reference_flux_values = _reference_flux(wave_value)
+    source_ratio = flux_values / reference_flux_values
     for segment_start, segment_end in integration_segments:
         interior = integration_knots[
             (integration_knots > segment_start) & (integration_knots < segment_end)
@@ -157,24 +159,28 @@ def synthetic_ab_magnitude(
             bandpass.detector_type,
         )
 
-        interpolated_flux = np.interp(
+        reference_flux = _reference_flux(integration_wave)
+        interpolated_ratio = np.interp(
             integration_wave,
             wave_value,
-            flux_values,
+            source_ratio,
         )
         detector_weight = _detector_weight(
             integration_wave,
             bandpass.detector_type,
         )
         source_signal += trapezoid(
-            interpolated_flux * integration_response * detector_weight,
+            interpolated_ratio
+            * reference_flux
+            * integration_response
+            * detector_weight,
             integration_wave,
         )
         if uncertainty is not None:
             coefficients += _linear_interpolation_integral_coefficients(
                 wave_value,
                 integration_wave,
-                integration_response * detector_weight,
+                reference_flux * integration_response * detector_weight,
             )
 
     coverage = overlap_reference_signal / full_reference_signal
@@ -195,7 +201,14 @@ def synthetic_ab_magnitude(
     magnitude_uncertainty = None
     if uncertainty is not None:
         signal_uncertainty = np.sqrt(
-            np.sum((coefficients * uncertainty.to_value(FLAM)) ** 2)
+            np.sum(
+                (
+                    coefficients
+                    / reference_flux_values
+                    * uncertainty.to_value(FLAM)
+                )
+                ** 2
+            )
         )
         magnitude_uncertainty = (
             2.5 / np.log(10.0) * signal_uncertainty / source_signal
@@ -322,11 +335,7 @@ def _reference_signal(
     response: np.ndarray,
     detector_type: DetectorType,
 ) -> float:
-    wavelength = wavelength_angstrom * u.AA
-    reference_flam = AB_ZERO_FNU.to(
-        FLAM,
-        equivalencies=u.spectral_density(wavelength),
-    ).value
+    reference_flam = _reference_flux(wavelength_angstrom)
     detector_weight = _detector_weight(wavelength_angstrom, detector_type)
     return float(
         trapezoid(
@@ -334,6 +343,14 @@ def _reference_signal(
             wavelength_angstrom,
         )
     )
+
+
+def _reference_flux(wavelength_angstrom: np.ndarray) -> np.ndarray:
+    wavelength = u.Quantity(wavelength_angstrom, u.AA)
+    return AB_ZERO_FNU.to(
+        FLAM,
+        equivalencies=u.spectral_density(wavelength),
+    ).value
 
 
 def _trapezoid_weights(x: np.ndarray) -> np.ndarray:

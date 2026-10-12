@@ -42,6 +42,25 @@ def test_scaled_constant_ab_reference_matches_known_magnitude(
 
 
 @pytest.mark.parametrize("detector_type", ["photon", "energy"])
+@pytest.mark.parametrize("flux_unit", [u.Jy, u.erg / (u.s * u.cm**2 * u.AA)])
+def test_sparse_constant_ab_reference_matches_known_magnitude(
+    detector_type,
+    flux_unit,
+):
+    wavelength = np.array([400.0, 600.0]) * u.nm
+    zero_flux = (np.full(len(wavelength), (0.0 * u.ABmag).to_value(u.Jy)) * u.Jy).to(
+        flux_unit,
+        equivalencies=u.spectral_density(wavelength),
+    )
+    spectrum = Spectrum(spectral_axis=wavelength, flux=zero_flux)
+
+    result = synthetic_ab_magnitude(spectrum, make_bandpass(detector_type))
+
+    assert result.magnitude == pytest.approx(0.0, abs=1e-12)
+    assert result.coverage == pytest.approx(1.0)
+
+
+@pytest.mark.parametrize("detector_type", ["photon", "energy"])
 def test_ab_magnitude_matches_independent_detector_weighted_reference(detector_type):
     flux_density = np.array([1.0, 1.1, 0.9, 1.2, 1.0]) * 3631.0 * u.Jy
     spectrum = Spectrum(spectral_axis=WAVELENGTH, flux=flux_density)
@@ -69,6 +88,44 @@ def test_ab_magnitude_matches_independent_detector_weighted_reference(detector_t
     )
 
     assert result.magnitude == pytest.approx(expected, abs=1e-12)
+
+
+@pytest.mark.parametrize("detector_type", ["photon", "energy"])
+def test_sparse_nonflat_spectrum_matches_independent_reference_integration(
+    detector_type,
+):
+    wavelength = np.array([400.0, 500.0, 600.0]) * u.nm
+    fnu_ratio = np.array([1.0, 1.2, 0.8])
+    spectrum = Spectrum(
+        spectral_axis=wavelength,
+        flux=fnu_ratio * 3631.0 * u.Jy,
+    )
+    bandpass = make_bandpass(detector_type)
+
+    result = synthetic_ab_magnitude(spectrum, bandpass)
+
+    reference = (np.full(len(WAVELENGTH), (0.0 * u.ABmag).to_value(u.Jy)) * u.Jy).to(
+        u.erg / (u.s * u.cm**2 * u.AA),
+        equivalencies=u.spectral_density(WAVELENGTH),
+    ).value
+    detector_weight = (
+        WAVELENGTH.to_value(u.AA)
+        if detector_type == "photon"
+        else np.ones_like(WAVELENGTH.value)
+    )
+    ratio = np.interp(WAVELENGTH.value, wavelength.value, fnu_ratio)
+    expected = -2.5 * np.log10(
+        trapezoid(
+            ratio * reference * TRANSMISSION * detector_weight,
+            WAVELENGTH.to_value(u.AA),
+        )
+        / trapezoid(
+            reference * TRANSMISSION * detector_weight,
+            WAVELENGTH.to_value(u.AA),
+        )
+    )
+
+    assert result.magnitude == pytest.approx(expected, abs=1e-4)
 
 
 def test_synthetic_magnitude_uncertainty_propagates_converted_flux_uncertainty():
