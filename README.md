@@ -15,15 +15,17 @@ Astropy-ecosystem data structures and APIs:
 
 ## Installation
 
-From the project directory:
+Published releases are available on PyPI. The package can be installed by running
 
 ```bash
-python -m pip install .
+pip install specmangle
 ```
 
 For development:
 
 ```bash
+git clone https://github.com/cgobat/specmangle.git
+cd specmangle
 python -m pip install -e .
 ```
 

@@ -4,12 +4,14 @@ Getting started
 Installation
 ------------
 
-Install the package from a local checkout with::
+Install the package from PyPI with::
 
-    python -m pip install .
+    pip install specmangle
 
 For development, including the documentation dependencies, use::
 
+    git clone https://github.com/cgobat/specmangle.git
+    cd specmangle
     python -m pip install -e ".[test,docs]"
 
 A basic mangling fit
