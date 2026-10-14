@@ -9,7 +9,7 @@ from .photometry import (
     synthetic_ab_magnitude,
 )
 
-__version__ = "0.1.0b1"
+__version__ = "0.1.0b2"
 
 __all__ = [
     "Bandpass",
