@@ -3,6 +3,7 @@
 [![CI status](https://github.com/cgobat/specmangle/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/cgobat/specmangle/actions/workflows/tests.yml)
 [![Doc build status](https://img.shields.io/readthedocs/specmangle?logo=readthedocs)](https://app.readthedocs.org/projects/specmangle/builds/)
 [![PyPI version](https://img.shields.io/pypi/v/specmangle?logo=pypi&logoColor=white&label=PyPI)](https://pypi.org/project/specmangle/)
+[![Open with Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/cgobat/specmangle/HEAD?labpath=examples%2Fdemo.ipynb)
 
 `specmangle` applies a smooth, wavelength-dependent multiplicative correction to
 an observed astronomical spectrum such that synthetic broadband photometry based
