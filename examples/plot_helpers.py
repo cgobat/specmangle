@@ -5,7 +5,7 @@ from astropy import units as u
 from specmangle import MangleResult
 
 
-colors = {"g": "C2", "r": "C3", "i": "gold", "z": "C5", "U": "C4", "B": "C0", "V": "limegreen", "R": "C3", "I": "C5", 
+colors = {"u": "C4", "g": "C2", "r": "C3", "i": "gold", "z": "C5", "U": "C4", "B": "C0", "V": "limegreen", "R": "C3", "I": "C5",
           "UVW1": "slateblue", "UVM2": "mediumslateblue", "UVW2": "darkslateblue", "orange": "C1"}
 markers = {"Swift/UVOT": "s", "Liverpool/IOO": "^", "Palomar/ZTF": "o"}
 
@@ -19,7 +19,7 @@ def plot_result(result: MangleResult) -> tuple[plt.Figure, list[plt.Axes]]:
     band_ax = axs[0].twinx()
     for name, bandpass in result.bandpasses.items():
         band_ax.fill_between(bandpass.wavelength.to_value(u.AA), 0, bandpass.transmission/np.max(bandpass.transmission),
-                            color=colors.get(name.split(".")[-1].removeprefix("SDSS-").removesuffix("_trn")),
+                            color=colors.get(name.split(".")[-1].removeprefix("SDSS-").removesuffix("_trn"), "grey"),
                             alpha=0.5, label=name.removesuffix("_trn"))
     band_ax.set_ylim(0, 5)
     band_ax.set_yticks([])
