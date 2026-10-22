@@ -20,7 +20,7 @@ Synthetic photometry
 
 .. autofunction:: specmangle.spectrum_to_magnitude
 
-.. autofunction:: specmangle.synthetic_ab_magnitude
+.. autofunction:: specmangle.synthetic_magnitude
 
 .. autoclass:: specmangle.SyntheticPhotometry
    :members:

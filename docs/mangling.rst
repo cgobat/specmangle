@@ -22,10 +22,12 @@ The fitted correction is returned at the original spectral samples as
 Photometric constraints
 -----------------------
 
-For every usable passband, synthetic AB photometry is recomputed from the
-corrected spectrum during the fit. If photometric or spectral uncertainties are
-available, their corresponding magnitude uncertainties are combined in
-quadrature when weighting residuals.
+For every usable passband, synthetic photometry is recomputed from the
+corrected spectrum during the fit in the magnitude system specified for that
+measurement. The optional ``system`` column accepts ``"AB"`` or ``"Vega"``;
+when the column or an individual entry is missing, ``"AB"`` is used. If
+photometric or spectral uncertainties are available, their corresponding
+magnitude uncertainties are combined in quadrature when weighting residuals.
 
 Repeated photometric measurements in the same passband are supported. They
 constrain the same spline anchor rather than adding independent anchors at the
@@ -40,7 +42,8 @@ wavelength range and masked internal gaps reduce the calculated coverage.
 Passbands below the threshold are skipped rather than making the whole fit
 fail, provided at least one usable passband remains.
 
-The returned photometry table includes diagnostic columns:
+The returned photometry table includes a normalized ``system`` column and
+diagnostic columns:
 
 ``used``
     Whether the measurement participated in the fit.

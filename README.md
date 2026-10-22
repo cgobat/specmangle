@@ -70,12 +70,14 @@ print(result.photometry)
 The input photometry table must contain:
 
 - `band`: passband identifier, normally an SVO FPS filter ID
-- `mag`: AB magnitude
+- `mag`: magnitude
 
 It may additionally contain:
 
 - `mag_err`: 1-sigma magnitude uncertainty. Masked values are treated as missing
 uncertainties.
+- `system`: magnitude system, either `"AB"` or `"Vega"`. If the column is
+omitted, or an individual value is unspecified/empty, `"AB"` is assumed.
 
 Additional columns are preserved in `result.photometry`, which adds `used`,
 `coverage`, `skip_reason`, `synthetic_mag`, `synthetic_mag_err`, and `residual`
@@ -89,10 +91,11 @@ cubic spline in log wavelength and log flux scale, with one free anchor at the
 pivot wavelength of each unique passband. The correction is held constant
 beyond the bluest and reddest anchors rather than extrapolating the spline.
 
-The fit minimizes the difference between the mangled spectrum's synthetic AB
-magnitudes and the supplied photometry. When uncertainties are available,
-photometric uncertainties and synthetic-photometry uncertainties propagated from
-the spectrum are combined in quadrature.
+The fit minimizes the difference between the mangled spectrum's synthetic
+magnitudes and the supplied photometry in each row's requested magnitude
+system. When uncertainties are available, photometric uncertainties and
+synthetic-photometry uncertainties propagated from the spectrum are combined
+in quadrature.
 
 A nonzero `smoothness` can be supplied to penalize changes in slope between
 neighboring spline anchors:
@@ -178,10 +181,10 @@ automatically for SVO filters.
 
 ## Passband coverage
 
-By default, at least 98% of the passband's AB-reference signal must fall within
-the wavelength range covered by the valid spectrum samples. This prevents a
-synthetic magnitude from silently relying on a substantially incomplete
-bandpass.
+By default, at least 98% of the passband's reference signal in the requested
+magnitude system must fall within the wavelength range covered by the valid
+spectrum samples. This prevents a synthetic magnitude from silently relying on
+an incomplete bandpass.
 
 The threshold can be changed with `min_coverage`:
 
@@ -191,13 +194,14 @@ result = mangle(spectrum, photometry, min_coverage=0.95)
 
 ## Direct synthetic photometry
 
-For the common/general case of computing an AB magnitude directly from an SVO
-FPS identifier:
+For the common/general case of computing a magnitude directly from an SVO FPS
+identifier:
 
 ```python
 from specmangle import spectrum_to_magnitude
 
-mag = spectrum_to_magnitude(spectrum, "SLOAN/SDSS.r")
+ab_mag = spectrum_to_magnitude(spectrum, "PAN-STARRS/PS1.r")
+vega_mag = spectrum_to_magnitude(spectrum, "Misc/APASS.V", system="Vega")
 ```
 
 If the input `Spectrum` includes an uncertainty, the function returns
@@ -208,15 +212,21 @@ The lower-level synthetic-photometry result is also exposed when coverage and
 other diagnostics are useful:
 
 ```python
-from specmangle import Bandpass, synthetic_ab_magnitude
+from specmangle import Bandpass, synthetic_magnitude
 
 bandpass = Bandpass.from_svo("SLOAN/SDSS.r")
-synthetic = synthetic_ab_magnitude(spectrum, bandpass)
+synthetic = synthetic_magnitude(spectrum, bandpass, system="AB")
 
 print(synthetic.magnitude)
 print(synthetic.uncertainty)
 print(synthetic.coverage)
 ```
+
+Vega magnitudes use the CALSPEC `alpha_lyr_stis_012.fits` spectrum as the
+zero-magnitude reference. The versioned reference file is downloaded on first
+use and cached by Astropy; its native sampling is retained in the bandpass
+integration. `synthetic_ab_magnitude` remains available as an AB-only convenience
+wrapper.
 
 ## Result object
 

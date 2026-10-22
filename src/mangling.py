@@ -14,9 +14,11 @@ from specutils import Spectrum
 
 from .bandpasses import Bandpass
 from .photometry import (
-    SyntheticPhotometry,
     InsufficientCoverageError,
-    synthetic_ab_magnitude,
+    MagnitudeSystem,
+    SyntheticPhotometry,
+    _normalize_magnitude_system,
+    synthetic_magnitude,
 )
 
 
@@ -66,6 +68,7 @@ class _PhotometryRow:
     band: str
     mag: float
     mag_err: float | None
+    system: MagnitudeSystem
 
 
 def mangle(
@@ -78,12 +81,13 @@ def mangle(
     max_nfev: int | None = None,
 ) -> MangleResult:
     """
-    Mangle a spectrum to match contemporaneous AB photometry.
+    Mangle a spectrum to match contemporaneous photometry.
 
-    ``photometry`` must contain ``band`` and ``mag`` columns and may contain a
-    ``mag_err`` column. Each ``band`` value is interpreted as an SVO filter ID
-    unless a matching :class:`~specmangle.Bandpass` is supplied through
-    ``bandpasses``. All magnitudes are interpreted as AB magnitudes.
+    ``photometry`` must contain ``band`` and ``mag`` columns and may contain
+    ``mag_err`` and ``system`` columns. Each ``band`` value is interpreted as
+    an SVO filter ID unless a matching :class:`~specmangle.Bandpass` is supplied
+    through ``bandpasses``. ``system`` may be ``"AB"`` or ``"Vega"`` and
+    defaults to ``"AB"`` when the column or an individual entry is missing.
 
     The positive multiplicative correction is represented by a natural cubic
     spline in log wavelength and log flux scale, with one free anchor per
@@ -117,32 +121,37 @@ def mangle(
         else:
             loaded_bandpasses[filter_id] = Bandpass.from_svo(filter_id)
 
-    original_synthetic = {}
-    coverage_by_filter = {}
-    skip_reason_by_filter = {}
-    usable_filter_ids = []
-    for filter_id in filter_ids:
+    synthetic_keys = list(dict.fromkeys((row.band, row.system) for row in rows))
+    original_synthetic: dict[
+        tuple[str, MagnitudeSystem], SyntheticPhotometry
+    ] = {}
+    coverage_by_key: dict[tuple[str, MagnitudeSystem], float] = {}
+    skip_reason_by_key: dict[tuple[str, MagnitudeSystem], str] = {}
+    for filter_id, system in synthetic_keys:
+        key = (filter_id, system)
         try:
-            original_synthetic[filter_id] = synthetic_ab_magnitude(
+            original_synthetic[key] = synthetic_magnitude(
                 spectrum,
                 loaded_bandpasses[filter_id],
+                system=system,
                 min_coverage=min_coverage,
             )
         except InsufficientCoverageError as exc:
-            coverage_by_filter[filter_id] = exc.coverage
-            skip_reason_by_filter[filter_id] = str(exc)
+            coverage_by_key[key] = exc.coverage
+            skip_reason_by_key[key] = str(exc)
             continue
-        coverage_by_filter[filter_id] = original_synthetic[filter_id].coverage
-        usable_filter_ids.append(filter_id)
+        coverage_by_key[key] = original_synthetic[key].coverage
 
-    if not usable_filter_ids:
-        reasons = "; ".join(skip_reason_by_filter.values())
+    rows_for_fit = [
+        row for row in rows if (row.band, row.system) in original_synthetic
+    ]
+    if not rows_for_fit:
+        reasons = "; ".join(dict.fromkeys(skip_reason_by_key.values()))
         raise ValueError(
             "no photometric passbands have sufficient spectral coverage: " + reasons
         )
 
-    filter_ids = usable_filter_ids
-    rows_for_fit = [row for row in rows if row.band in original_synthetic]
+    filter_ids = list(dict.fromkeys(row.band for row in rows_for_fit))
     loaded_bandpasses = {
         filter_id: loaded_bandpasses[filter_id] for filter_id in filter_ids
     }
@@ -171,10 +180,10 @@ def mangle(
     for filter_id in ordered_filter_ids:
         estimates = []
         weights = []
-        synthetic = original_synthetic[filter_id]
         for row in rows_for_fit:
             if row.band != filter_id:
                 continue
+            synthetic = original_synthetic[(row.band, row.system)]
             estimates.append(0.4 * np.log(10.0) * (synthetic.magnitude - row.mag))
             sigma = _combined_magnitude_uncertainty(row, synthetic)
             weights.append(1.0 if sigma is None else 1.0 / sigma**2)
@@ -189,6 +198,8 @@ def mangle(
     if np.any(~np.isfinite(spectrum_wave)) or np.any(spectrum_wave <= 0.0):
         raise ValueError("spectrum wavelengths must be positive and finite")
 
+    usable_synthetic_keys = list(original_synthetic)
+
     def residual_function(parameters: np.ndarray) -> np.ndarray:
         correction = np.exp(
             _evaluate_log_correction(
@@ -198,18 +209,19 @@ def mangle(
             )
         )
         corrected_spectrum = _apply_correction(spectrum, correction)
-        synthetic_by_filter = {
-            filter_id: synthetic_ab_magnitude(
+        synthetic_by_key = {
+            key: synthetic_magnitude(
                 corrected_spectrum,
-                loaded_bandpasses[filter_id],
+                loaded_bandpasses[key[0]],
+                system=key[1],
                 min_coverage=min_coverage,
             )
-            for filter_id in filter_ids
+            for key in usable_synthetic_keys
         }
 
         residuals = []
         for row in rows_for_fit:
-            synthetic = synthetic_by_filter[row.band]
+            synthetic = synthetic_by_key[(row.band, row.system)]
             sigma = _combined_magnitude_uncertainty(row, synthetic)
             scale = 1.0 if sigma is None else sigma
             residuals.append((synthetic.magnitude - row.mag) / scale)
@@ -237,13 +249,14 @@ def mangle(
     correction = np.exp(best_log_correction)
     corrected_spectrum = _apply_correction(spectrum, correction)
 
-    final_synthetic_by_filter = {
-        filter_id: synthetic_ab_magnitude(
+    final_synthetic_by_key = {
+        key: synthetic_magnitude(
             corrected_spectrum,
-            loaded_bandpasses[filter_id],
+            loaded_bandpasses[key[0]],
+            system=key[1],
             min_coverage=min_coverage,
         )
-        for filter_id in filter_ids
+        for key in usable_synthetic_keys
     }
 
     parameter_covariance = _parameter_covariance(optimizer, spectrum, rows_for_fit)
@@ -264,24 +277,29 @@ def mangle(
         )
 
     diagnostics = photometry.copy(copy_data=True)
-    diagnostics["used"] = [row.band in final_synthetic_by_filter for row in rows]
-    diagnostics["coverage"] = [coverage_by_filter[row.band] for row in rows]
+    diagnostics["system"] = [row.system for row in rows]
+    diagnostics["used"] = [
+        (row.band, row.system) in final_synthetic_by_key for row in rows
+    ]
+    diagnostics["coverage"] = [
+        coverage_by_key[(row.band, row.system)] for row in rows
+    ]
     diagnostics["skip_reason"] = [
-        skip_reason_by_filter.get(row.band, "") for row in rows
+        skip_reason_by_key.get((row.band, row.system), "") for row in rows
     ]
     diagnostics["synthetic_mag"] = [
         np.nan
-        if row.band not in final_synthetic_by_filter
-        else final_synthetic_by_filter[row.band].magnitude
+        if (row.band, row.system) not in final_synthetic_by_key
+        else final_synthetic_by_key[(row.band, row.system)].magnitude
         for row in rows
     ]
     diagnostics["synthetic_mag_err"] = [
         np.nan
         if (
-            row.band not in final_synthetic_by_filter
-            or final_synthetic_by_filter[row.band].uncertainty is None
+            (row.band, row.system) not in final_synthetic_by_key
+            or final_synthetic_by_key[(row.band, row.system)].uncertainty is None
         )
-        else final_synthetic_by_filter[row.band].uncertainty
+        else final_synthetic_by_key[(row.band, row.system)].uncertainty
         for row in rows
     ]
     diagnostics["residual"] = diagnostics["synthetic_mag"] - np.array(
@@ -342,9 +360,38 @@ def _photometry_rows(photometry: Table) -> list[_PhotometryRow]:
                         f"photometry mag_err must be positive and finite at row {index}"
                     )
 
-        rows.append(_PhotometryRow(band=band, mag=mag, mag_err=mag_err))
+        system: MagnitudeSystem = "AB"
+        if "system" in photometry.colnames:
+            system_value = photometry["system"][index]
+            if not _is_missing_system(system_value):
+                try:
+                    system = _normalize_magnitude_system(system_value)
+                except ValueError as exc:
+                    raise ValueError(
+                        f'photometry system must be "AB" or "Vega" at row {index}'
+                    ) from exc
+
+        rows.append(
+            _PhotometryRow(
+                band=band,
+                mag=mag,
+                mag_err=mag_err,
+                system=system,
+            )
+        )
 
     return rows
+
+
+def _is_missing_system(value: object) -> bool:
+    if np.ma.is_masked(value) or value is None:
+        return True
+    if isinstance(value, str) and value.strip().casefold() == "nan":
+        return True
+    try:
+        return bool(np.isnan(value))
+    except (TypeError, ValueError):
+        return False
 
 
 def _apply_correction(spectrum: Spectrum, correction: np.ndarray) -> Spectrum:
